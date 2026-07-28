@@ -7,9 +7,11 @@ import WorkoutView from '../views/WorkoutView.vue'
 import RoutinesView from '../views/RoutinesView.vue'
 import CalendarView from '../views/CalendarView.vue'
 import HistoryView from '../views/HistoryView.vue'
+import LoginView from '../views/LoginView.vue'
 
 const routes = [
   { path: '/', redirect: '/today' },
+  { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
   { path: '/today', name: 'today', component: TodayView },
   { path: '/routines', name: 'routines', component: RoutinesView },
   { path: '/calendar', name: 'calendar', component: CalendarView },
@@ -21,7 +23,15 @@ const routes = [
   { path: '/dbtest', name: 'dbtest', component: DbTestView },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHashHistory(),
   routes,
 })
+
+router.beforeEach((to) => {
+  if (to.meta.public) return true
+  if (sessionStorage.getItem('lb_auth') === '1') return true
+  return { name: 'login', query: { redirect: to.fullPath } }
+})
+
+export default router
