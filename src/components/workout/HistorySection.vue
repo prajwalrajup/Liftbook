@@ -1,6 +1,5 @@
 <template>
-  <main class="page">
-    <h1 class="page-title">History</h1>
+  <div>
 
     <div v-if="loading" class="empty-state"><p>Loading…</p></div>
 
@@ -102,12 +101,12 @@
         </div>
       </div>
     </Teleport>
-  </main>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import sql from '../lib/db.js'
+import sql from '../../lib/db.js'
 
 const loading = ref(true)
 const sessions = ref([])

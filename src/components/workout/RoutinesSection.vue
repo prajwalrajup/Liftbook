@@ -1,7 +1,7 @@
 <template>
-  <main class="page">
+  <div>
     <div class="header-row">
-      <h1 class="page-title" style="margin:0">Routines</h1>
+      <span class="section-label">Your routines</span>
       <RouterLink to="/routines/new" class="btn btn-primary">+ New</RouterLink>
     </div>
 
@@ -35,12 +35,12 @@
         </div>
       </div>
     </template>
-  </main>
+  </div>
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRoutinesStore } from '../stores/routines.js'
+import { useRoutinesStore } from '../../stores/routines.js'
 
 const store = useRoutinesStore()
 onMounted(() => store.load())
@@ -52,6 +52,7 @@ async function remove(r) {
 </script>
 
 <style scoped>
+.section-label { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
 .header-row {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
 }

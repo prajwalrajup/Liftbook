@@ -1,6 +1,5 @@
 <template>
-  <main class="page">
-    <h1 class="page-title">Calendar</h1>
+  <div>
 
     <div v-if="!scheduleStore.loaded || !routinesStore.loaded" class="empty-state">
       <p>Loading…</p>
@@ -71,13 +70,13 @@
         </div>
       </div>
     </Teleport>
-  </main>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useScheduleStore } from '../stores/schedule.js'
-import { useRoutinesStore } from '../stores/routines.js'
+import { useScheduleStore } from '../../stores/schedule.js'
+import { useRoutinesStore } from '../../stores/routines.js'
 
 const scheduleStore = useScheduleStore()
 const routinesStore = useRoutinesStore()

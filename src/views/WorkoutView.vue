@@ -342,7 +342,7 @@ async function logDrop() {
 async function finish() {
   if (!confirm('Finish this workout?')) return
   await store.finishSession()
-  router.replace('/history')
+  router.replace('/workout?s=history')
 }
 
 function confirmExit() {
