@@ -35,6 +35,21 @@
           Set up schedule
         </RouterLink>
       </div>
+
+      <!-- Weigh-in day -->
+      <div v-if="todayEntry?.weigh_in" class="state-card weigh-card">
+        <div class="state-icon">⚖️</div>
+        <RouterLink v-if="weighedToday" to="/workout?s=body" class="weighed-link">
+          <div class="state-label">Weighed in</div>
+          <p class="state-sub">{{ weighedToday.weight_kg }} kg logged today. Tap to edit.</p>
+        </RouterLink>
+        <template v-else>
+          <div class="state-label">Weigh-in day</div>
+          <RouterLink to="/workout?s=body" class="btn btn-secondary btn-full start-btn">
+            Log weight
+          </RouterLink>
+        </template>
+      </div>
     </template>
   </main>
 </template>
@@ -42,15 +57,26 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useScheduleStore } from '../stores/schedule.js'
+import { useBodyStore } from '../stores/body.js'
 
 const scheduleStore = useScheduleStore()
-onMounted(() => scheduleStore.load())
+const body = useBodyStore()
+onMounted(() => {
+  scheduleStore.load()
+  body.load()
+})
 
 const now = new Date()
 const weekday = now.toLocaleDateString('en-US', { weekday: 'long' })
 const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
 const todayEntry = computed(() => scheduleStore.todayEntry())
+
+const pad = (n) => String(n).padStart(2, '0')
+const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const weighedToday = computed(() =>
+  body.entries.find((e) => e.recorded_on === todayISO && e.weight_kg != null),
+)
 </script>
 
 <style scoped>
@@ -81,6 +107,8 @@ const todayEntry = computed(() => scheduleStore.todayEntry())
 .state-label { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
 .state-sub { color: var(--text-secondary); font-size: 14px; }
 
+.weigh-card { margin-top: 16px; }
+.weighed-link { display: block; color: inherit; text-decoration: none; }
 .routine-card .state-label { color: var(--text); }
 .start-btn { margin-top: 24px; min-height: 52px; font-size: 17px; }
 </style>

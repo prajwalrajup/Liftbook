@@ -20,7 +20,8 @@
         <div class="day-right">
           <span v-if="entry(day.dow)?.is_rest_day" class="day-status rest">Rest day</span>
           <span v-else-if="entry(day.dow)?.routine_name" class="day-status routine">{{ entry(day.dow).routine_name }}</span>
-          <span v-else class="day-status empty">—</span>
+          <span v-else-if="!entry(day.dow)?.weigh_in" class="day-status empty">—</span>
+          <span v-if="entry(day.dow)?.weigh_in" class="day-status weigh" title="Weigh-in">⚖️</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       </button>
@@ -49,6 +50,17 @@
                 No routines yet — create one in Routines first.
               </p>
             </div>
+
+            <div class="divider" />
+
+            <!-- Weigh-in -->
+            <button
+              class="btn btn-secondary btn-full"
+              :class="{ 'btn-active-rest': entry(sheet.dow)?.weigh_in }"
+              @click="toggleWeighIn(sheet.dow)"
+            >
+              ⚖️ Weigh-in {{ entry(sheet.dow)?.weigh_in ? '· on' : '' }}
+            </button>
 
             <div class="divider" />
 
@@ -110,6 +122,10 @@ async function assign(dow, routineId) {
 async function assignRest(dow) {
   await scheduleStore.setDay(dow, { routineId: null, isRestDay: true })
   sheet.value = null
+}
+
+async function toggleWeighIn(dow) {
+  await scheduleStore.setWeighIn(dow, !entry(dow)?.weigh_in)
 }
 
 async function clearDay(dow) {

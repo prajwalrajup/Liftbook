@@ -36,9 +36,35 @@ export const useScheduleStore = defineStore('schedule', () => {
           set routine_id = null, is_rest_day = true
       `
     } else {
-      await sql`delete from weekly_schedule where day_of_week = ${dayOfWeek}`
+      await sql`
+        update weekly_schedule set routine_id = null, is_rest_day = false
+        where day_of_week = ${dayOfWeek}
+      `
+      await prune(dayOfWeek)
     }
-    // Reload affected day
+    await reloadDay(dayOfWeek)
+  }
+
+  async function setWeighIn(dayOfWeek, weighIn) {
+    await sql`
+      insert into weekly_schedule (day_of_week, routine_id, is_rest_day, weigh_in)
+      values (${dayOfWeek}, null, false, ${weighIn})
+      on conflict (day_of_week) do update set weigh_in = excluded.weigh_in
+    `
+    await prune(dayOfWeek)
+    await reloadDay(dayOfWeek)
+  }
+
+  // Drop rows that carry no schedule info at all
+  async function prune(dayOfWeek) {
+    await sql`
+      delete from weekly_schedule
+      where day_of_week = ${dayOfWeek}
+        and routine_id is null and not is_rest_day and not weigh_in
+    `
+  }
+
+  async function reloadDay(dayOfWeek) {
     const rows = await sql`
       select ws.*, r.name as routine_name
       from weekly_schedule ws
@@ -56,5 +82,5 @@ export const useScheduleStore = defineStore('schedule', () => {
     return schedule.value[dow] ?? null
   }
 
-  return { schedule, loaded, load, setDay, todayEntry }
+  return { schedule, loaded, load, setDay, setWeighIn, todayEntry }
 })
