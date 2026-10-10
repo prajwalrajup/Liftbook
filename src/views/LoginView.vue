@@ -55,7 +55,7 @@ function submit() {
     username.value === import.meta.env.VITE_APP_USER &&
     password.value === import.meta.env.VITE_APP_PASS
   ) {
-    sessionStorage.setItem('lb_auth', '1')
+    localStorage.setItem('lb_auth', '1')
     const redirect = route.query.redirect || '/today'
     router.replace(redirect)
   } else {

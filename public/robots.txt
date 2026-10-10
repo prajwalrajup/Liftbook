@@ -1,0 +1,19 @@
+# Anthropic / Claude crawlers
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-User
+Disallow: /
+
+User-agent: Claude-SearchBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+# Everyone else
+User-agent: *
+Disallow: /

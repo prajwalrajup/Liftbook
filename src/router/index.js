@@ -30,7 +30,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   if (to.meta.public) return true
-  if (sessionStorage.getItem('lb_auth') === '1') return true
+  if (localStorage.getItem('lb_auth') === '1') return true
   return { name: 'login', query: { redirect: to.fullPath } }
 })
 
