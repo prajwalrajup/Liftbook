@@ -238,7 +238,7 @@ async function del() {
   border-top: 1px solid var(--border);
 }
 .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 4px; }
-.sheet-body { padding: 12px 20px 48px; }
+.sheet-body { padding: 12px 20px calc(32px + var(--safe-bottom)); }
 .sheet-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
 
 .chips { display: flex; gap: 6px; margin-top: 10px; }

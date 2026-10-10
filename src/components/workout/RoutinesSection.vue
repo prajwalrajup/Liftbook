@@ -71,5 +71,5 @@ async function remove(r) {
 .routine-name { display: block; font-size: 16px; font-weight: 600; }
 .routine-meta { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .routine-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.btn-sm { min-height: 44px; padding: 0 12px; font-size: 13px; }
 </style>

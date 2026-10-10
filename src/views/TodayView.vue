@@ -31,7 +31,7 @@
       <div v-else class="state-card empty-card">
         <div class="state-icon">📅</div>
         <div class="state-label">No routine today</div>
-        <RouterLink to="/workout?s=schedule" class="btn btn-secondary btn-full" style="margin-top:16px">
+        <RouterLink to="/workout?s=schedule" class="btn btn-secondary btn-full" style="margin-top:12px">
           Set up schedule
         </RouterLink>
       </div>
@@ -73,6 +73,12 @@
         </span>
       </button>
     </section>
+
+    <!-- Countdown -->
+    <div class="state-card countdown-card">
+      <span class="countdown-num">{{ daysLeft }}</span>
+      <span class="countdown-label">{{ daysLeft === 1 ? 'day' : 'days' }} left until {{ targetLabel }}</span>
+    </div>
 
     <!-- Value entry for number / time habits -->
     <Teleport to="body">
@@ -221,6 +227,20 @@ async function unmark() {
   } catch { fail() }
 }
 
+// Days until the next 3 January (this year's if not yet passed, else next year's)
+const TARGET_MONTH = 0
+const TARGET_DAY = 3
+const targetDate = (() => {
+  const thisYear = new Date(now.getFullYear(), TARGET_MONTH, TARGET_DAY)
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return thisYear >= startOfToday ? thisYear : new Date(now.getFullYear() + 1, TARGET_MONTH, TARGET_DAY)
+})()
+const daysLeft = Math.round(
+  (Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()) -
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000,
+)
+const targetLabel = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
 const weighedToday = computed(() =>
   body.entries.find((e) => e.recorded_on === todayISO && e.weight_kg != null),
 )
@@ -247,14 +267,14 @@ const weighedToday = computed(() =>
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 32px 20px 28px;
+  padding: 20px 16px;
   text-align: center;
 }
-.state-icon { font-size: 48px; margin-bottom: 12px; }
-.state-label { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.state-icon { font-size: 34px; margin-bottom: 6px; line-height: 1.2; }
+.state-label { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
 .state-sub { color: var(--text-secondary); font-size: 14px; }
 
-.habit-list { margin-top: 24px; }
+.habit-list { margin-top: 20px; }
 .habit-list-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
 .habit-row {
   display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px;
@@ -279,18 +299,22 @@ const weighedToday = computed(() =>
 }
 .sheet {
   background: var(--bg-surface); border-radius: 20px 20px 0 0; width: 100%;
+  max-height: 90dvh; overflow-y: auto;
   border-top: 1px solid var(--border);
 }
 .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 4px; }
-.sheet-body { padding: 12px 20px 48px; }
+.sheet-body { padding: 12px 20px calc(32px + var(--safe-bottom)); }
 .sheet-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
 .habit-value.running { color: var(--accent); font-variant-numeric: tabular-nums; }
 .timer-box { text-align: center; }
 .timer-clock { font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 4px 0 20px; }
 .or { text-align: center; color: var(--text-secondary); font-size: 13px; margin: 16px 0; }
 .entry-error { color: var(--danger); font-size: 14px; margin-top: 10px; }
-.weigh-card { margin-top: 16px; }
+.countdown-card { margin-top: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.countdown-num { font-size: 44px; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.countdown-label { font-size: 14px; color: var(--text-secondary); }
+.weigh-card { margin-top: 12px; }
 .weighed-link { display: block; color: inherit; text-decoration: none; }
 .routine-card .state-label { color: var(--text); }
-.start-btn { margin-top: 24px; min-height: 52px; font-size: 17px; }
+.start-btn { margin-top: 14px; min-height: 52px; font-size: 17px; }
 </style>

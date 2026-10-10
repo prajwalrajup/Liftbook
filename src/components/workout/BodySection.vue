@@ -143,6 +143,6 @@ async function save() {
 .form-error { color: var(--danger); font-size: 14px; margin-top: 10px; }
 .recent-row { display: flex; align-items: center; gap: 8px; min-height: 44px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .recent-date { color: var(--text-secondary); flex: 1; }
-.del { padding: 0 12px; color: var(--text-secondary); }
+.del { min-width: 44px; padding: 0 12px; color: var(--text-secondary); }
 
 </style>

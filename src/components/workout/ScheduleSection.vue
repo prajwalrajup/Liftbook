@@ -183,7 +183,7 @@ async function clearDay(dow) {
   width: 36px; height: 4px; background: var(--border);
   border-radius: 2px; margin: 12px auto 4px;
 }
-.sheet-body { padding: 12px 20px 48px; }
+.sheet-body { padding: 12px 20px calc(32px + var(--safe-bottom)); }
 .sheet-day-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
 .sheet-section-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
 
