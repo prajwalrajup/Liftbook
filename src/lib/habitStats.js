@@ -72,3 +72,25 @@ export function computeStats(habit, logMap, { rangeDays = null, today = new Date
     sum, avg: valued ? sum / valued : null,
   }
 }
+
+// What counts toward the calendar on a date: mandatory habits scheduled that day,
+// plus the scheduled workout. Returns how many were required and how many are done.
+// logs: { habitId: { 'YYYY-MM-DD': value|null } }
+// workout: { dows: Set<number>, done: Set<string>, from: string|null } | null
+// Workouts only count from `from` (first workout ever started) so history before
+// the app was in use isn't marked as missed.
+export function daySummary(habits, logs, iso, workout = null) {
+  const dow = fromISO(iso).getDay()
+  let total = 0
+  let done = 0
+  for (const h of habits) {
+    if (!h.mandatory || h.created_on > iso || !h.days.includes(dow)) continue
+    total++
+    if (iso in (logs[h.id] ?? {})) done++
+  }
+  if (workout && workout.from && iso >= workout.from && workout.dows.has(dow)) {
+    total++
+    if (workout.done.has(iso)) done++
+  }
+  return { total, done }
+}

@@ -6,6 +6,9 @@ export const useScheduleStore = defineStore('schedule', () => {
   // Keyed by day_of_week (0=Sun … 6=Sat)
   const schedule = ref({})
   const loaded = ref(false)
+  // Local dates ('YYYY-MM-DD') with a finished workout, and the first date any workout was started
+  const workoutDays = ref([])
+  const firstWorkoutDay = ref(null)
 
   async function load() {
     if (loaded.value) return
@@ -18,6 +21,23 @@ export const useScheduleStore = defineStore('schedule', () => {
     for (const row of rows) map[row.day_of_week] = row
     schedule.value = map
     loaded.value = true
+  }
+
+  async function loadWorkoutDays() {
+    const rows = await sql`select started_at, finished_at is not null as finished from workout_sessions`
+    const iso = (t) => {
+      const d = new Date(t)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+    const days = new Set()
+    let first = null
+    for (const r of rows) {
+      const day = iso(r.started_at)
+      if (first == null || day < first) first = day
+      if (r.finished) days.add(day)
+    }
+    workoutDays.value = [...days]
+    firstWorkoutDay.value = first
   }
 
   async function setDay(dayOfWeek, { routineId, isRestDay }) {
@@ -82,5 +102,5 @@ export const useScheduleStore = defineStore('schedule', () => {
     return schedule.value[dow] ?? null
   }
 
-  return { schedule, loaded, load, setDay, setWeighIn, todayEntry }
+  return { schedule, loaded, workoutDays, firstWorkoutDay, loadWorkoutDays, load, setDay, setWeighIn, todayEntry }
 })

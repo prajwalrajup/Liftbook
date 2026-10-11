@@ -74,6 +74,9 @@
       </button>
     </section>
 
+    <!-- Habit consistency calendar -->
+    <HabitHeatmap v-if="habitsStore.loaded && showCalendar" class="heatmap-wrap" />
+
     <!-- Countdown -->
     <div class="state-card countdown-card">
       <span class="countdown-num">{{ daysLeft }}</span>
@@ -139,6 +142,7 @@ import { useScheduleStore } from '../stores/schedule.js'
 import { useBodyStore } from '../stores/body.js'
 import { useHabitsStore } from '../stores/habits.js'
 import { formatValue } from '../lib/habitStats.js'
+import HabitHeatmap from '../components/HabitHeatmap.vue'
 
 const scheduleStore = useScheduleStore()
 const body = useBodyStore()
@@ -171,6 +175,12 @@ const todayEntry = computed(() => scheduleStore.todayEntry())
 
 const pad = (n) => String(n).padStart(2, '0')
 const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const showCalendar = computed(
+  () =>
+    habitsStore.habits.some((h) => h.mandatory) ||
+    Object.values(scheduleStore.schedule).some((e) => e.routine_id),
+)
+
 const todaysHabits = computed(() =>
   habitsStore.habits.filter((h) => h.days.includes(now.getDay())),
 )
@@ -310,6 +320,7 @@ const weighedToday = computed(() =>
 .timer-clock { font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 4px 0 20px; }
 .or { text-align: center; color: var(--text-secondary); font-size: 13px; margin: 16px 0; }
 .entry-error { color: var(--danger); font-size: 14px; margin-top: 10px; }
+.heatmap-wrap { margin-top: 16px; }
 .countdown-card { margin-top: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .countdown-num { font-size: 44px; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
 .countdown-label { font-size: 14px; color: var(--text-secondary); }

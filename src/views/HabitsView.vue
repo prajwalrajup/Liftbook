@@ -29,7 +29,7 @@
           <HabitRing :rate="h.stats.rate" :size="64" />
           <div class="habit-info">
             <span class="habit-name">{{ h.name }}</span>
-            <span class="habit-freq">{{ frequencyLabel(h.days) }}</span>
+            <span class="habit-freq">{{ frequencyLabel(h.days) }}<template v-if="h.mandatory"> · ★ Mandatory</template></span>
             <span class="habit-stats">
               <b class="ok">{{ h.stats.success }}</b> kept ·
               <b class="bad">{{ h.stats.missed }}</b> missed
@@ -74,6 +74,21 @@
               style="margin-top:10px"
             />
             <p v-if="form.metric === 'timer'" class="hint">Enter minutes for the day, or run a start/stop timer from Overview.</p>
+
+            <button
+              type="button"
+              class="switch-row"
+              :class="{ on: form.mandatory }"
+              role="switch"
+              :aria-checked="form.mandatory"
+              @click="form.mandatory = !form.mandatory"
+            >
+              <span class="switch-text">
+                <span class="switch-title">Mandatory</span>
+                <span class="switch-sub">Counts toward the Overview calendar</span>
+              </span>
+              <span class="switch-knob" aria-hidden="true"><i /></span>
+            </button>
 
             <label style="margin-top:16px">Frequency</label>
             <div class="seg">
@@ -154,17 +169,17 @@ const groups = computed(() => [
 
 // ── Add / edit sheet ──
 const sheet = ref(null)
-const form = reactive({ name: '', kind: 'build', metric: 'boolean', unit: '', days: [0, 1, 2, 3, 4, 5, 6] })
+const form = reactive({ name: '', kind: 'build', metric: 'boolean', unit: '', mandatory: false, days: [0, 1, 2, 3, 4, 5, 6] })
 const saving = ref(false)
 const error = ref('')
 
 function openNew() {
-  Object.assign(form, { name: '', kind: 'build', metric: 'boolean', unit: '', days: [0, 1, 2, 3, 4, 5, 6] })
+  Object.assign(form, { name: '', kind: 'build', metric: 'boolean', unit: '', mandatory: false, days: [0, 1, 2, 3, 4, 5, 6] })
   error.value = ''
   sheet.value = {}
 }
 function openEdit(h) {
-  Object.assign(form, { name: h.name, kind: h.kind, metric: h.metric, unit: h.unit ?? '', days: [...h.days] })
+  Object.assign(form, { name: h.name, kind: h.kind, metric: h.metric, unit: h.unit ?? '', mandatory: h.mandatory, days: [...h.days] })
   error.value = ''
   sheet.value = { id: h.id }
 }
@@ -184,7 +199,7 @@ async function save() {
   error.value = ''
   try {
     const unit = form.metric === 'numeric' ? form.unit.trim() || null : null
-    const payload = { name, kind: form.kind, metric: form.metric, unit, days: [...form.days].sort() }
+    const payload = { name, kind: form.kind, metric: form.metric, unit, mandatory: form.mandatory, days: [...form.days].sort() }
     if (sheet.value.id) await store.update(sheet.value.id, payload)
     else await store.add(payload)
     sheet.value = null
@@ -249,6 +264,22 @@ async function del() {
 }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+.switch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 56px; margin-top: 16px; padding: 8px 14px; text-align: left; color: var(--text);
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.switch-text { display: flex; flex-direction: column; }
+.switch-title { font-size: 15px; font-weight: 600; }
+.switch-sub { font-size: 12px; color: var(--text-secondary); }
+.switch-knob {
+  flex: none; width: 46px; height: 28px; border-radius: 14px; background: var(--border);
+  position: relative; transition: background 0.15s;
+}
+.switch-knob i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.switch-row.on { border-color: var(--accent); }
+.switch-row.on .switch-knob { background: var(--accent); }
+.switch-row.on .switch-knob i { transform: translateX(18px); }
 .hint { font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
 .form-error { color: var(--danger); font-size: 14px; margin-top: 12px; }
 </style>

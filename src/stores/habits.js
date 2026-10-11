@@ -12,7 +12,7 @@ export const useHabitsStore = defineStore('habits', () => {
   async function load() {
     if (loaded.value) return
     const [hRows, lRows, rRows] = await Promise.all([
-      sql`select id, name, kind, days, metric, unit, to_char(created_on, 'YYYY-MM-DD') as created_on
+      sql`select id, name, kind, days, metric, unit, mandatory, to_char(created_on, 'YYYY-MM-DD') as created_on
           from habits order by created_at asc`,
       sql`select habit_id, to_char(log_date, 'YYYY-MM-DD') as log_date, value::float as value from habit_logs`,
       sql`select id, habit_id, started_at from habit_sessions where ended_at is null`,
@@ -27,21 +27,22 @@ export const useHabitsStore = defineStore('habits', () => {
     loaded.value = true
   }
 
-  async function add({ name, kind, days, metric, unit }) {
+  async function add({ name, kind, days, metric, unit, mandatory }) {
     const [row] = await sql`
-      insert into habits (name, kind, days, metric, unit, created_on)
-      values (${name}, ${kind}, ${days}, ${metric}, ${unit}, ${toISO(new Date())})
-      returning id, name, kind, days, metric, unit, to_char(created_on, 'YYYY-MM-DD') as created_on
+      insert into habits (name, kind, days, metric, unit, mandatory, created_on)
+      values (${name}, ${kind}, ${days}, ${metric}, ${unit}, ${mandatory}, ${toISO(new Date())})
+      returning id, name, kind, days, metric, unit, mandatory, to_char(created_on, 'YYYY-MM-DD') as created_on
     `
     habits.value = [...habits.value, row]
   }
 
-  async function update(id, { name, kind, days, metric, unit }) {
+  async function update(id, { name, kind, days, metric, unit, mandatory }) {
     await sql`
-      update habits set name = ${name}, kind = ${kind}, days = ${days}, metric = ${metric}, unit = ${unit}
+      update habits set name = ${name}, kind = ${kind}, days = ${days}, metric = ${metric}, unit = ${unit},
+          mandatory = ${mandatory}
       where id = ${id}
     `
-    habits.value = habits.value.map((h) => (h.id === id ? { ...h, name, kind, days, metric, unit } : h))
+    habits.value = habits.value.map((h) => (h.id === id ? { ...h, name, kind, days, metric, unit, mandatory } : h))
   }
 
   async function remove(id) {
