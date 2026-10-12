@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import sql from '../lib/db.js'
+import { appDay, appDayISO } from '../lib/habitStats.js'
 
 export const useScheduleStore = defineStore('schedule', () => {
   // Keyed by day_of_week (0=Sun … 6=Sat)
@@ -25,10 +26,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
   async function loadWorkoutDays() {
     const rows = await sql`select started_at, finished_at is not null as finished from workout_sessions`
-    const iso = (t) => {
-      const d = new Date(t)
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    }
+    const iso = appDayISO
     const days = new Set()
     let first = null
     for (const r of rows) {
@@ -98,7 +96,7 @@ export const useScheduleStore = defineStore('schedule', () => {
   }
 
   function todayEntry() {
-    const dow = new Date().getDay()
+    const dow = appDay().getDay()
     return schedule.value[dow] ?? null
   }
 

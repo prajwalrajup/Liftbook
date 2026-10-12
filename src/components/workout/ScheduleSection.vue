@@ -89,6 +89,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useScheduleStore } from '../../stores/schedule.js'
 import { useRoutinesStore } from '../../stores/routines.js'
+import { appDay } from '../../lib/habitStats.js'
 
 const scheduleStore = useScheduleStore()
 const routinesStore = useRoutinesStore()
@@ -97,7 +98,7 @@ onMounted(async () => {
   await Promise.all([scheduleStore.load(), routinesStore.load()])
 })
 
-const todayDow = new Date().getDay()
+const todayDow = appDay().getDay()
 
 const days = [
   { dow: 1, label: 'Monday' },

@@ -67,13 +67,14 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useBodyStore } from '../../stores/body.js'
 import LineChart from '../LineChart.vue'
+import { appDayISO } from '../../lib/habitStats.js'
 
 const body = useBodyStore()
 onMounted(() => body.load())
 
 const localISO = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const todayISO = localISO(new Date())
+const todayISO = appDayISO()
 
 const metric = ref('weight')
 const form = reactive({ weight: '', height: '', date: todayISO })

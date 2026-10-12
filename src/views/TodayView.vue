@@ -153,7 +153,7 @@ import { useScheduleStore } from '../stores/schedule.js'
 import { useBodyStore } from '../stores/body.js'
 import { useHabitsStore } from '../stores/habits.js'
 import { useWorkoutStore } from '../stores/workout.js'
-import { formatValue } from '../lib/habitStats.js'
+import { appDay, appDayISO, formatValue } from '../lib/habitStats.js'
 import HabitHeatmap from '../components/HabitHeatmap.vue'
 
 const scheduleStore = useScheduleStore()
@@ -182,14 +182,13 @@ function clock(id) {
   return h ? `${h}:${m}:${ss}` : `${m}:${ss}`
 }
 
-const now = new Date()
+const now = appDay()
 const weekday = now.toLocaleDateString('en-US', { weekday: 'long' })
 const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
 const todayEntry = computed(() => scheduleStore.todayEntry())
 
-const pad = (n) => String(n).padStart(2, '0')
-const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const todayISO = appDayISO()
 const resumeNote = computed(() => {
   const s = openSession.value
   if (!s) return ''

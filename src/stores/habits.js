@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import sql from '../lib/db.js'
-import { toISO } from '../lib/habitStats.js'
+import { appDayISO } from '../lib/habitStats.js'
 
 export const useHabitsStore = defineStore('habits', () => {
   const habits = ref([])
@@ -30,7 +30,7 @@ export const useHabitsStore = defineStore('habits', () => {
   async function add({ name, kind, days, metric, unit, mandatory }) {
     const [row] = await sql`
       insert into habits (name, kind, days, metric, unit, mandatory, created_on)
-      values (${name}, ${kind}, ${days}, ${metric}, ${unit}, ${mandatory}, ${toISO(new Date())})
+      values (${name}, ${kind}, ${days}, ${metric}, ${unit}, ${mandatory}, ${appDayISO()})
       returning id, name, kind, days, metric, unit, mandatory, to_char(created_on, 'YYYY-MM-DD') as created_on
     `
     habits.value = [...habits.value, row]
@@ -104,7 +104,7 @@ export const useHabitsStore = defineStore('habits', () => {
     const { [id]: _, ...rest } = running.value
     running.value = rest
     // Day total = existing minutes for the day the session began + this session
-    const day = toISO(new Date(r.startedAt))
+    const day = appDayISO(r.startedAt)
     const total = Math.round(((valueOf(id, day) ?? 0) + minutes) * 100) / 100
     await setLog(id, day, total)
     return minutes

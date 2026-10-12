@@ -3,6 +3,16 @@ const pad = (n) => String(n).padStart(2, '0')
 export const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 export const fromISO = (iso) => new Date(iso + 'T00:00')
 
+// The app's day starts at 9am: before that, it is still "yesterday".
+export const DAY_START_HOUR = 9
+const dayShifted = (t) => new Date(new Date(t).getTime() - DAY_START_HOUR * 3600000)
+// Local-midnight Date for the app day containing time `t` (default: now)
+export function appDay(t = Date.now()) {
+  const s = dayShifted(t)
+  return new Date(s.getFullYear(), s.getMonth(), s.getDate())
+}
+export const appDayISO = (t = Date.now()) => toISO(appDay(t))
+
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export function frequencyLabel(days) {
@@ -34,7 +44,7 @@ export function formatValue(habit, v) {
 // Stats for one habit over scheduled days from max(created_on, range start) to today.
 // logMap: { 'YYYY-MM-DD': value|null } of days marked done.
 // A scheduled past day without a log is "missed". Today only counts once done.
-export function computeStats(habit, logMap, { rangeDays = null, today = new Date() } = {}) {
+export function computeStats(habit, logMap, { rangeDays = null, today = appDay() } = {}) {
   const done = new Set(Object.keys(logMap))
   const todayISO = toISO(today)
   let start = fromISO(habit.created_on)

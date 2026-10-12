@@ -21,7 +21,13 @@
       </div>
     </div>
 
-    <p class="hm-info">{{ selectedCell ? describe(selectedCell) : 'Tap a day for details' }}</p>
+    <div class="hm-info-row">
+      <p class="hm-info">{{ selectedCell ? describe(selectedCell) : 'Tap a day for details' }}</p>
+      <button v-if="selectedCell && selectedCell.status !== 'future'" class="btn btn-secondary hm-edit" @click="editing = true">
+        Edit day
+      </button>
+    </div>
+    <DayHabitsSheet v-if="editing" :iso="selected" @close="editing = false" />
 
     <div class="hm-legend">
       <span><i class="cell all" /> All</span>
@@ -37,7 +43,8 @@ import { computed, ref } from 'vue'
 import { onMounted } from 'vue'
 import { useHabitsStore } from '../stores/habits.js'
 import { useScheduleStore } from '../stores/schedule.js'
-import { daySummary, fromISO, toISO } from '../lib/habitStats.js'
+import DayHabitsSheet from './DayHabitsSheet.vue'
+import { appDay, daySummary, fromISO, toISO } from '../lib/habitStats.js'
 
 const WEEKS = 15
 const store = useHabitsStore()
@@ -52,9 +59,10 @@ const workout = computed(() => ({
   from: schedule.firstWorkoutDay,
 }))
 
-const today = new Date()
+const today = appDay()
 const todayISO = toISO(today)
 const selected = ref(todayISO)
+const editing = ref(false)
 
 // Grid starts on the Monday (WEEKS - 1) weeks before this week's Monday
 const start = (() => {
@@ -120,7 +128,9 @@ function describe(c) {
 .cell.today { outline: 2px solid var(--text); outline-offset: 1px; }
 .cell.sel:not(.today) { outline: 2px solid var(--text-secondary); outline-offset: 1px; }
 
-.hm-info { font-size: 13px; color: var(--text-secondary); margin-top: 12px; min-height: 20px; }
+.hm-info-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; min-height: 44px; }
+.hm-info { font-size: 13px; color: var(--text-secondary); min-width: 0; }
+.hm-edit { flex: none; min-height: 44px; padding: 0 16px; font-size: 14px; }
 .hm-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
 .hm-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .hm-legend .cell { width: 12px; height: 12px; aspect-ratio: auto; display: inline-block; }
