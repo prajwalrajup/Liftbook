@@ -96,6 +96,87 @@ export const useWorkoutStore = defineStore('workout', () => {
     startRestTimer(ex?.rest_seconds ?? session.value.defaultRest)
   }
 
+  // ── Edit today's session only. Nothing here touches routines / routine_exercises. ──
+
+  function updateTargets(exerciseId, { targetSets, targetReps }) {
+    exercises.value = exercises.value.map(e =>
+      e.exercise_id === exerciseId ? { ...e, target_sets: targetSets, target_reps: targetReps } : e,
+    )
+  }
+
+  // exercise must already exist in `exercises` table (caller ensures FK)
+  function addExercise(ex) {
+    if (exercises.value.some(e => e.exercise_id === ex.id)) {
+      currentIdx.value = exercises.value.findIndex(e => e.exercise_id === ex.id)
+      return
+    }
+    exercises.value = [...exercises.value, {
+      exercise_id: ex.id,
+      name: ex.name,
+      type: ex.type,
+      primary_muscles: ex.primary_muscles,
+      equipment: ex.equipment,
+      target_sets: null,
+      target_reps: null,
+      rest_seconds: null,
+    }]
+    currentIdx.value = exercises.value.length - 1
+  }
+
+  // Only exercises without logged sets can be removed (logged sets must stay attached to something visible)
+  function canRemoveExercise(exerciseId) {
+    return setsFor(exerciseId).length === 0
+  }
+
+  function removeExercise(exerciseId) {
+    if (!canRemoveExercise(exerciseId)) return
+    exercises.value = exercises.value.filter(e => e.exercise_id !== exerciseId)
+    if (currentIdx.value >= exercises.value.length) currentIdx.value = Math.max(0, exercises.value.length - 1)
+  }
+
+  async function updateSet(exerciseId, rowId, weight, reps) {
+    await sql`update logged_sets set weight = ${weight ?? null}, reps = ${reps ?? null} where id = ${rowId}`
+    sets.value = {
+      ...sets.value,
+      [exerciseId]: setsFor(exerciseId).map(s => s.id === rowId ? { ...s, weight: weight ?? null, reps: reps ?? null } : s),
+    }
+  }
+
+  // Deleting a main set removes its drops too and closes the numbering gap;
+  // deleting a drop closes the drop-number gap.
+  async function deleteSet(exerciseId, rowId) {
+    const row = setsFor(exerciseId).find(s => s.id === rowId)
+    if (!row) return
+    const sid = session.value.id
+    if (row.drop_number === 0) {
+      const n = row.set_number
+      await sql`delete from logged_sets where session_id = ${sid} and exercise_id = ${exerciseId} and set_number = ${n}`
+      await sql`
+        update logged_sets set set_number = set_number - 1
+        where session_id = ${sid} and exercise_id = ${exerciseId} and set_number > ${n}
+      `
+      sets.value = {
+        ...sets.value,
+        [exerciseId]: setsFor(exerciseId)
+          .filter(s => s.set_number !== n)
+          .map(s => s.set_number > n ? { ...s, set_number: s.set_number - 1 } : s),
+      }
+    } else {
+      const { set_number: n, drop_number: d } = row
+      await sql`delete from logged_sets where id = ${rowId}`
+      await sql`
+        update logged_sets set drop_number = drop_number - 1
+        where session_id = ${sid} and exercise_id = ${exerciseId} and set_number = ${n} and drop_number > ${d}
+      `
+      sets.value = {
+        ...sets.value,
+        [exerciseId]: setsFor(exerciseId)
+          .filter(s => s.id !== rowId)
+          .map(s => s.set_number === n && s.drop_number > d ? { ...s, drop_number: s.drop_number - 1 } : s),
+      }
+    }
+  }
+
   async function finishSession() {
     stopRestTimer()
     await sql`update workout_sessions set finished_at = now() where id = ${session.value.id}`
@@ -136,6 +217,7 @@ export const useWorkoutStore = defineStore('workout', () => {
     restSecondsLeft, restActive,
     currentExercise, setsFor, lastSetsFor, nextSetNumber, lastSetForNumber,
     startSession, logSet, logDrop, finishSession,
+    updateTargets, addExercise, canRemoveExercise, removeExercise, updateSet, deleteSet,
     stopRestTimer, trimRest, goTo,
   }
 })

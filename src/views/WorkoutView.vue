@@ -21,6 +21,9 @@
           <span class="workout-name">{{ store.session?.routineName }}</span>
           <span class="workout-progress">{{ store.currentIdx + 1 }} / {{ store.exercises.length }}</span>
         </div>
+        <button class="btn btn-ghost icon-only" aria-label="Edit today's exercises" @click="planOpen = true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </button>
         <button class="btn btn-danger-sm" @click="finish">Finish</button>
       </div>
 
@@ -54,18 +57,19 @@
             class="set-group"
           >
             <!-- Main set row -->
-            <div class="set-row">
+            <div class="set-row tappable" @click="openEditSet(mainSet)">
               <span class="set-num">{{ mainSet.set_number }}</span>
               <span class="set-val">{{ mainSet.weight != null ? mainSet.weight + ' kg' : '—' }}</span>
               <span class="set-x">×</span>
               <span class="set-val">{{ mainSet.reps != null ? mainSet.reps + ' reps' : '—' }}</span>
-              <button class="drop-btn" @click="openDrop(mainSet.set_number)">+ drop</button>
+              <button class="drop-btn" @click.stop="openDrop(mainSet.set_number)">+ drop</button>
             </div>
             <!-- Drop sets -->
             <div
               v-for="drop in dropSets(mainSet.set_number)"
               :key="`drop-${drop.drop_number}`"
-              class="set-row drop-row"
+              class="set-row drop-row tappable"
+              @click="openEditSet(drop)"
             >
               <span class="set-num drop-label">↳ drop {{ drop.drop_number }}</span>
               <span class="set-val">{{ drop.weight != null ? drop.weight + ' kg' : '—' }}</span>
@@ -165,6 +169,106 @@
       </div>
     </Teleport>
 
+    <!-- Edit today's exercises (session only; routine template is not changed) -->
+    <Teleport to="body">
+      <div v-if="planOpen" class="sheet-backdrop" @click="planOpen = false">
+        <div class="sheet tall" @click.stop>
+          <div class="sheet-handle" />
+          <div class="sheet-body">
+            <h2 style="margin-bottom:4px">Today's exercises</h2>
+            <p class="plan-note">Changes apply to this workout only. Your routine isn't changed.</p>
+
+            <div v-for="ex in store.exercises" :key="ex.exercise_id" class="plan-row">
+              <div class="plan-top">
+                <span class="plan-name">{{ ex.name }}</span>
+                <button
+                  class="plan-remove"
+                  :disabled="!store.canRemoveExercise(ex.exercise_id)"
+                  :title="store.canRemoveExercise(ex.exercise_id) ? 'Remove from today' : 'Has logged sets'"
+                  aria-label="Remove from today"
+                  @click="store.removeExercise(ex.exercise_id)"
+                >
+                  ✕
+                </button>
+              </div>
+              <div class="plan-fields">
+                <div>
+                  <label>Sets</label>
+                  <input
+                    type="number" min="0" inputmode="numeric" placeholder="—"
+                    :value="ex.target_sets ?? ''"
+                    @change="setTarget(ex, 'sets', $event.target.value)"
+                  />
+                </div>
+                <div>
+                  <label>Reps</label>
+                  <input
+                    type="text" inputmode="text" placeholder="e.g. 8-10"
+                    :value="ex.target_reps ?? ''"
+                    @change="setTarget(ex, 'reps', $event.target.value)"
+                  />
+                </div>
+              </div>
+              <p v-if="!store.canRemoveExercise(ex.exercise_id)" class="plan-hint">
+                {{ store.setsFor(ex.exercise_id).length }} logged — can't remove
+              </p>
+            </div>
+
+            <button class="btn btn-secondary btn-full" style="margin-top:12px" @click="pickerOpen = true">
+              + Add exercise
+            </button>
+            <button class="btn btn-primary btn-full" style="margin-top:10px" @click="planOpen = false">Done</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Exercise picker -->
+    <Teleport to="body">
+      <div v-if="pickerOpen" class="picker-overlay">
+        <ExercisesView :pick-mode="true" @pick="onPick" @cancel="pickerOpen = false" />
+      </div>
+    </Teleport>
+
+    <!-- Edit a logged set -->
+    <Teleport to="body">
+      <div v-if="editSet" class="sheet-backdrop" @click="editSet = null">
+        <div class="sheet" @click.stop>
+          <div class="sheet-handle" />
+          <div class="sheet-body">
+            <h2 style="margin-bottom:16px">
+              {{ editSet.drop_number ? `Set ${editSet.set_number} · drop ${editSet.drop_number}` : `Set ${editSet.set_number}` }}
+            </h2>
+            <div class="input-row" style="margin-bottom:16px">
+              <div class="input-group">
+                <button class="step-btn" @click="editWeight = Math.max(0, (editWeight || 0) - 2.5)">−</button>
+                <div class="input-wrap">
+                  <input v-model.number="editWeight" type="number" step="0.5" min="0" class="big-input" inputmode="decimal" />
+                  <span class="input-unit">kg</span>
+                </div>
+                <button class="step-btn" @click="editWeight = (editWeight || 0) + 2.5">+</button>
+              </div>
+              <span class="input-sep">×</span>
+              <div class="input-group">
+                <button class="step-btn" @click="editReps = Math.max(0, (editReps || 0) - 1)">−</button>
+                <div class="input-wrap">
+                  <input v-model.number="editReps" type="number" min="0" class="big-input" inputmode="numeric" />
+                  <span class="input-unit">reps</span>
+                </div>
+                <button class="step-btn" @click="editReps = (editReps || 0) + 1">+</button>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-full" :disabled="savingSet" @click="saveSet">
+              {{ savingSet ? 'Saving…' : 'Save' }}
+            </button>
+            <button class="btn btn-danger btn-full" style="margin-top:10px" :disabled="savingSet" @click="removeSet">
+              {{ editSet.drop_number ? 'Delete drop' : 'Delete set' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Drop set modal -->
     <Teleport to="body">
       <div v-if="dropModal" class="sheet-backdrop" @click="dropModal = null">
@@ -205,10 +309,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useWorkoutStore } from '../stores/workout.js'
+import { useExercisesStore } from '../stores/exercises.js'
+import ExercisesView from './ExercisesView.vue'
 
 const router = useRouter()
 const route = useRoute()
 const store = useWorkoutStore()
+const exercisesStore = useExercisesStore()
 
 const loading = ref(true)
 const error = ref('')
@@ -339,6 +446,69 @@ async function logDrop() {
   }
 }
 
+// ── Today-only edits ──
+const planOpen = ref(false)
+const pickerOpen = ref(false)
+const editSet = ref(null)
+const editWeight = ref(0)
+const editReps = ref(0)
+const savingSet = ref(false)
+
+function setTarget(ex, field, raw) {
+  const v = String(raw).trim()
+  if (field === 'sets') {
+    const n = v === '' ? null : Math.max(0, Math.floor(Number(v)))
+    store.updateTargets(ex.exercise_id, { targetSets: Number.isFinite(n) ? n : null, targetReps: ex.target_reps })
+  } else {
+    store.updateTargets(ex.exercise_id, { targetSets: ex.target_sets, targetReps: v || null })
+  }
+}
+
+async function onPick(exercise) {
+  pickerOpen.value = false
+  try {
+    await exercisesStore.ensureInDb(exercise) // FK: logged_sets.exercise_id -> exercises.id
+    store.addExercise(exercise)
+    planOpen.value = false
+    prefillFromLast()
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+function openEditSet(row) {
+  editWeight.value = row.weight ?? 0
+  editReps.value = row.reps ?? 0
+  editSet.value = row
+}
+
+async function saveSet() {
+  savingSet.value = true
+  try {
+    await store.updateSet(currentEx.value.exercise_id, editSet.value.id, editWeight.value || null, editReps.value || null)
+    editSet.value = null
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    savingSet.value = false
+  }
+}
+
+async function removeSet() {
+  const what = editSet.value.drop_number ? 'this drop' : 'this set and its drops'
+  if (!confirm(`Delete ${what}?`)) return
+  savingSet.value = true
+  try {
+    await store.deleteSet(currentEx.value.exercise_id, editSet.value.id)
+    editSet.value = null
+    prefillFromLast()
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    savingSet.value = false
+  }
+}
+
 async function finish() {
   if (!confirm('Finish this workout?')) return
   await store.finishSession()
@@ -391,6 +561,23 @@ function confirmExit() {
   border-radius: var(--radius-sm); cursor: pointer;
 }
 .btn-danger-sm:active { opacity: 0.7; }
+
+/* Today-only edit */
+.tappable { cursor: pointer; }
+.tappable:active { background: var(--bg-elevated); }
+.sheet.tall { max-height: 90dvh; overflow-y: auto; }
+.plan-note { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+.plan-row { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+.plan-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.plan-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.plan-remove { flex: none; width: 44px; min-height: 44px; background: transparent; border: none; color: var(--danger); font-size: 16px; }
+.plan-remove:disabled { color: var(--border); }
+.plan-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan-hint { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.picker-overlay {
+  position: fixed; inset: 0; background: var(--bg); z-index: 300;
+  display: flex; flex-direction: column; overflow: hidden;
+}
 
 /* Exercise dots */
 .ex-dots {
@@ -564,5 +751,5 @@ function confirmExit() {
   width: 36px; height: 4px; background: var(--border);
   border-radius: 2px; margin: 12px auto 4px;
 }
-.sheet-body { padding: 12px 20px 48px; }
+.sheet-body { padding: 12px 20px calc(32px + var(--safe-bottom)); }
 </style>
