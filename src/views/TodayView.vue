@@ -9,21 +9,32 @@
 
     <template v-else>
       <!-- Rest day -->
-      <div v-if="todayEntry?.is_rest_day" class="state-card rest-card">
+      <div v-if="todayEntry?.is_rest_day && !openSession" class="state-card rest-card">
         <div class="state-icon">🛌</div>
         <div class="state-label">Rest Day</div>
         <p class="state-sub">Recovery is part of training.</p>
       </div>
 
+      <!-- Unfinished workout (paused or left open), when it isn't today's routine card below -->
+      <div v-else-if="openSession && openSession.routine_id !== todayEntry?.routine_id" class="state-card routine-card">
+        <div class="state-icon">⏸️</div>
+        <div class="state-label">{{ openSession.routine_name ?? 'Workout' }}</div>
+        <p class="state-sub">{{ resumeNote }}</p>
+        <RouterLink :to="`/workout/${openSession.routine_id}`" class="btn btn-primary btn-full start-btn">
+          Resume Workout
+        </RouterLink>
+      </div>
+
       <!-- Has routine -->
       <div v-else-if="todayEntry?.routine_name" class="state-card routine-card">
-        <div class="state-icon">💪</div>
+        <div class="state-icon">{{ openSession ? '⏸️' : '💪' }}</div>
         <div class="state-label">{{ todayEntry.routine_name }}</div>
+        <p v-if="openSession" class="state-sub">{{ resumeNote }}</p>
         <RouterLink
           :to="`/workout/${todayEntry.routine_id}`"
           class="btn btn-primary btn-full start-btn"
         >
-          Start Workout
+          {{ openSession ? 'Resume Workout' : 'Start Workout' }}
         </RouterLink>
       </div>
 
@@ -141,16 +152,20 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useScheduleStore } from '../stores/schedule.js'
 import { useBodyStore } from '../stores/body.js'
 import { useHabitsStore } from '../stores/habits.js'
+import { useWorkoutStore } from '../stores/workout.js'
 import { formatValue } from '../lib/habitStats.js'
 import HabitHeatmap from '../components/HabitHeatmap.vue'
 
 const scheduleStore = useScheduleStore()
 const body = useBodyStore()
 const habitsStore = useHabitsStore()
+const workoutStore = useWorkoutStore()
+const openSession = ref(null)
 onMounted(() => {
   scheduleStore.load()
   body.load()
   habitsStore.load()
+  workoutStore.findOpenSession().then((s) => (openSession.value = s)).catch(() => {})
   tickTimer = setInterval(() => (nowMs.value = Date.now()), 1000)
 })
 onUnmounted(() => clearInterval(tickTimer))
@@ -175,6 +190,13 @@ const todayEntry = computed(() => scheduleStore.todayEntry())
 
 const pad = (n) => String(n).padStart(2, '0')
 const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const resumeNote = computed(() => {
+  const s = openSession.value
+  if (!s) return ''
+  const n = s.sets_logged
+  return `${s.paused_at ? 'Paused' : 'In progress'} · ${n} ${n === 1 ? 'set' : 'sets'} logged`
+})
+
 const showCalendar = computed(
   () =>
     habitsStore.habits.some((h) => h.mandatory) ||

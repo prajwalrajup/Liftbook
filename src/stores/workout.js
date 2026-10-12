@@ -28,7 +28,45 @@ export const useWorkoutStore = defineStore('workout', () => {
     return lastSetsFor(exerciseId).find(s => s.set_number === setNumber && s.drop_number === 0) ?? null
   }
 
+  async function loadLastSets(routineId) {
+    // Previous finished session's sets, for pre-fill
+    const [prevSession] = await sql`
+      select id from workout_sessions
+      where routine_id = ${routineId} and finished_at is not null
+      order by started_at desc limit 1
+    `
+    const byEx = {}
+    if (prevSession) {
+      const prevRows = await sql`
+        select exercise_id, set_number, drop_number, weight, reps
+        from logged_sets where session_id = ${prevSession.id}
+        order by set_number, drop_number
+      `
+      for (const r of prevRows) (byEx[r.exercise_id] ??= []).push(r)
+    }
+    lastSets.value = byEx
+  }
+
+  // Latest unfinished session (paused or just left open) from the last 24h, if any.
+  async function findOpenSession(routineId = null) {
+    const [row] = await sql`
+      select s.id, s.routine_id, s.started_at, s.paused_at, r.name as routine_name,
+             (select count(*) from logged_sets l where l.session_id = s.id and l.drop_number = 0)::int as sets_logged
+      from workout_sessions s
+      left join routines r on r.id = s.routine_id
+      where s.finished_at is null
+        and s.started_at > now() - interval '24 hours'
+        and (${routineId}::uuid is null or s.routine_id = ${routineId}::uuid)
+      order by s.started_at desc
+      limit 1
+    `
+    return row ?? null
+  }
+
   async function startSession(routineId) {
+    const open = await findOpenSession(routineId)
+    if (open) return resumeSession(open.id)
+
     const [routine] = await sql`select * from routines where id = ${routineId}`
     const exRows = await sql`
       select re.*, e.name, e.type, e.primary_muscles, e.equipment
@@ -37,28 +75,7 @@ export const useWorkoutStore = defineStore('workout', () => {
       where re.routine_id = ${routineId}
       order by re.position
     `
-
-    // Fetch last finished session's sets for pre-fill
-    const [prevSession] = await sql`
-      select id from workout_sessions
-      where routine_id = ${routineId} and finished_at is not null
-      order by started_at desc limit 1
-    `
-    if (prevSession) {
-      const prevRows = await sql`
-        select exercise_id, set_number, drop_number, weight, reps
-        from logged_sets where session_id = ${prevSession.id}
-        order by set_number, drop_number
-      `
-      const byEx = {}
-      for (const r of prevRows) {
-        if (!byEx[r.exercise_id]) byEx[r.exercise_id] = []
-        byEx[r.exercise_id].push(r)
-      }
-      lastSets.value = byEx
-    } else {
-      lastSets.value = {}
-    }
+    await loadLastSets(routineId)
 
     const [sess] = await sql`
       insert into workout_sessions (routine_id) values (${routineId}) returning *
@@ -69,6 +86,69 @@ export const useWorkoutStore = defineStore('workout', () => {
     sets.value = {}
     status.value = 'active'
     stopRestTimer()
+  }
+
+  // Continue a paused / left-open session: restores the day's plan and logged sets.
+  async function resumeSession(sessionId) {
+    const [sess] = await sql`select * from workout_sessions where id = ${sessionId}`
+    if (!sess || sess.finished_at) throw new Error('That workout is already finished.')
+    const [routine] = await sql`select * from routines where id = ${sess.routine_id}`
+
+    let list
+    let idx = 0
+    if (sess.plan?.exercises) {
+      list = sess.plan.exercises
+      idx = sess.plan.idx ?? 0
+    } else {
+      list = await sql`
+        select re.*, e.name, e.type, e.primary_muscles, e.equipment
+        from routine_exercises re
+        join exercises e on e.id = re.exercise_id
+        where re.routine_id = ${sess.routine_id}
+        order by re.position
+      `
+    }
+
+    const rows = await sql`
+      select * from logged_sets where session_id = ${sessionId} order by set_number, drop_number
+    `
+    const byEx = {}
+    for (const r of rows) (byEx[r.exercise_id] ??= []).push(r)
+
+    // Any exercise with logged sets must stay visible, even if it isn't in the saved plan
+    const missing = Object.keys(byEx).filter(id => !list.some(e => e.exercise_id === id))
+    for (const id of missing) {
+      const [ex] = await sql`select id, name, type, primary_muscles, equipment from exercises where id = ${id}`
+      if (ex) list = [...list, { exercise_id: ex.id, name: ex.name, type: ex.type, primary_muscles: ex.primary_muscles, equipment: ex.equipment, target_sets: null, target_reps: null, rest_seconds: null }]
+    }
+
+    await loadLastSets(sess.routine_id)
+    await sql`update workout_sessions set paused_at = null where id = ${sessionId}`
+
+    session.value = { id: sessionId, routineId: sess.routine_id, routineName: routine?.name ?? 'Workout', defaultRest: routine?.rest_between_sets_seconds ?? 90 }
+    exercises.value = list
+    currentIdx.value = Math.min(idx, Math.max(0, list.length - 1))
+    sets.value = byEx
+    status.value = 'active'
+    stopRestTimer()
+  }
+
+  // Save today's plan (targets / added / removed exercises) so it survives a pause or reload
+  async function persistPlan() {
+    if (!session.value) return
+    const plan = { exercises: exercises.value, idx: currentIdx.value }
+    await sql`update workout_sessions set plan = ${JSON.stringify(plan)}::jsonb where id = ${session.value.id}`
+  }
+
+  async function pauseSession() {
+    await persistPlan()
+    await sql`update workout_sessions set paused_at = now() where id = ${session.value.id}`
+    stopRestTimer()
+    status.value = 'idle'
+    session.value = null
+    exercises.value = []
+    sets.value = {}
+    lastSets.value = {}
   }
 
   async function logSet(exerciseId, weight, reps) {
@@ -102,6 +182,7 @@ export const useWorkoutStore = defineStore('workout', () => {
     exercises.value = exercises.value.map(e =>
       e.exercise_id === exerciseId ? { ...e, target_sets: targetSets, target_reps: targetReps } : e,
     )
+    persistPlan().catch(() => {})
   }
 
   // exercise must already exist in `exercises` table (caller ensures FK)
@@ -121,6 +202,7 @@ export const useWorkoutStore = defineStore('workout', () => {
       rest_seconds: null,
     }]
     currentIdx.value = exercises.value.length - 1
+    persistPlan().catch(() => {})
   }
 
   // Only exercises without logged sets can be removed (logged sets must stay attached to something visible)
@@ -132,6 +214,7 @@ export const useWorkoutStore = defineStore('workout', () => {
     if (!canRemoveExercise(exerciseId)) return
     exercises.value = exercises.value.filter(e => e.exercise_id !== exerciseId)
     if (currentIdx.value >= exercises.value.length) currentIdx.value = Math.max(0, exercises.value.length - 1)
+    persistPlan().catch(() => {})
   }
 
   async function updateSet(exerciseId, rowId, weight, reps) {
@@ -216,7 +299,7 @@ export const useWorkoutStore = defineStore('workout', () => {
     session, exercises, currentIdx, sets, lastSets, status,
     restSecondsLeft, restActive,
     currentExercise, setsFor, lastSetsFor, nextSetNumber, lastSetForNumber,
-    startSession, logSet, logDrop, finishSession,
+    startSession, resumeSession, findOpenSession, pauseSession, logSet, logDrop, finishSession,
     updateTargets, addExercise, canRemoveExercise, removeExercise, updateSet, deleteSet,
     stopRestTimer, trimRest, goTo,
   }

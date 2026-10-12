@@ -24,6 +24,7 @@
         <button class="btn btn-ghost icon-only" aria-label="Edit today's exercises" @click="planOpen = true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
+        <button class="btn btn-pause-sm" :disabled="pausing" @click="pause">Pause</button>
         <button class="btn btn-danger-sm" @click="finish">Finish</button>
       </div>
 
@@ -515,9 +516,26 @@ async function finish() {
   router.replace('/workout?s=history')
 }
 
+const pausing = ref(false)
+
+// Save progress and leave; resume later from Overview
+async function pause() {
+  pausing.value = true
+  try {
+    await store.pauseSession()
+    router.replace('/today')
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    pausing.value = false
+  }
+}
+
 function confirmExit() {
   if (store.status === 'active') {
-    if (!confirm('Exit without finishing? Session will stay open.')) return
+    if (!confirm('Pause this workout and leave? You can resume it later from Overview.')) return
+    pause()
+    return
   }
   router.back()
 }
@@ -561,6 +579,18 @@ function confirmExit() {
   border-radius: var(--radius-sm); cursor: pointer;
 }
 .btn-danger-sm:active { opacity: 0.7; }
+.btn-pause-sm {
+  min-height: 36px; padding: 0 12px; font-size: 13px; font-weight: 700;
+  background: transparent; border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.btn-pause-sm:active { opacity: 0.7; }
+.btn-pause-sm:disabled { opacity: 0.5; }
+.btn-pause-sm, .btn-danger-sm { min-height: 44px; }
+@media (max-width: 360px) {
+  .workout-header { gap: 4px; padding: 10px 8px 8px; }
+  .btn-pause-sm, .btn-danger-sm { padding: 0 9px; }
+}
 
 /* Today-only edit */
 .tappable { cursor: pointer; }
