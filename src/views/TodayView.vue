@@ -92,6 +92,7 @@
         <span class="habit-text">
           <span class="habit-name">{{ h.name }}</span>
           <span v-if="h.kind === 'quit'" class="habit-tag">Quit</span>
+          <span v-if="h.mandatory" class="habit-tag req">Required</span>
         </span>
         <span v-if="habitsStore.running[h.id]" class="habit-value running">● {{ clock(h.id) }}</span>
         <span v-else-if="h.metric !== 'boolean'" class="habit-value">
@@ -342,6 +343,7 @@ const weighedToday = computed(() =>
 .habit-text { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .habit-name { font-weight: 500; overflow-wrap: anywhere; }
 .habit-tag { font-size: 11px; font-weight: 700; color: var(--danger); border: 1px solid var(--danger); border-radius: 6px; padding: 1px 6px; }
+.habit-tag.req { color: var(--text-secondary); border-color: var(--border); }
 .habit-value { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--success); white-space: nowrap; }
 .sheet-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6);
