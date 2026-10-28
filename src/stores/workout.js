@@ -270,13 +270,35 @@ export const useWorkoutStore = defineStore('workout', () => {
     lastSets.value = {}
   }
 
+  // Created on the set-log tap so the browser's autoplay rule allows the beeps when the timer ends
+  let audioCtx = null
+  function beep3() {
+    const ctx = audioCtx
+    if (!ctx) return
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.frequency.value = 880
+      osc.connect(gain).connect(ctx.destination)
+      const t = ctx.currentTime + i * 0.4
+      gain.gain.setValueAtTime(0.3, t)
+      gain.gain.setValueAtTime(0, t + 0.2)
+      osc.start(t)
+      osc.stop(t + 0.2)
+    }
+  }
+
   function startRestTimer(seconds) {
     stopRestTimer()
+    try {
+      audioCtx ??= new AudioContext()
+      audioCtx.resume()
+    } catch { audioCtx = null }
     restSecondsLeft.value = seconds
     restActive.value = true
     restInterval = setInterval(() => {
       restSecondsLeft.value--
-      if (restSecondsLeft.value <= 0) stopRestTimer()
+      if (restSecondsLeft.value <= 0) { stopRestTimer(); beep3() }
     }, 1000)
   }
 
