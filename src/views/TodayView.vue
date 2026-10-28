@@ -13,6 +13,21 @@
         <div class="state-icon">🛌</div>
         <div class="state-label">Rest Day</div>
         <p class="state-sub">Recovery is part of training.</p>
+        <button v-if="!pickRoutine" class="btn btn-secondary btn-full start-btn" @click="pickRoutine = true">
+          Log a routine anyway
+        </button>
+        <template v-else>
+          <p v-if="!routinesStore.routines.length" class="state-sub" style="margin-top:14px">No routines yet.</p>
+          <RouterLink
+            v-for="r in routinesStore.routines"
+            :key="r.id"
+            :to="`/workout/${r.id}`"
+            class="btn btn-secondary btn-full"
+            style="margin-top:8px"
+          >
+            {{ r.name }}
+          </RouterLink>
+        </template>
       </div>
 
       <!-- Unfinished workout (paused or left open), when it isn't today's routine card below -->
@@ -151,6 +166,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useScheduleStore } from '../stores/schedule.js'
 import { useBodyStore } from '../stores/body.js'
+import { useRoutinesStore } from '../stores/routines.js'
 import { useHabitsStore } from '../stores/habits.js'
 import { useWorkoutStore } from '../stores/workout.js'
 import { appDay, appDayISO, formatValue } from '../lib/habitStats.js'
@@ -160,9 +176,12 @@ const scheduleStore = useScheduleStore()
 const body = useBodyStore()
 const habitsStore = useHabitsStore()
 const workoutStore = useWorkoutStore()
+const routinesStore = useRoutinesStore()
+const pickRoutine = ref(false)
 const openSession = ref(null)
 onMounted(() => {
   scheduleStore.load()
+  routinesStore.load()
   body.load()
   habitsStore.load()
   workoutStore.findOpenSession().then((s) => (openSession.value = s)).catch(() => {})
