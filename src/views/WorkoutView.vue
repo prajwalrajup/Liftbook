@@ -60,9 +60,15 @@
             <!-- Main set row -->
             <div class="set-row tappable" @click="openEditSet(mainSet)">
               <span class="set-num">{{ mainSet.set_number }}</span>
-              <span class="set-val">{{ mainSet.weight != null ? mainSet.weight + ' kg' : '—' }}</span>
+              <span class="set-val">{{ sideLabel(mainSet, 'L') }}{{ mainSet.weight != null ? mainSet.weight + ' kg' : '—' }}</span>
               <span class="set-x">×</span>
               <span class="set-val">{{ mainSet.reps != null ? mainSet.reps + ' reps' : '—' }}</span>
+              <template v-if="isSplit(mainSet)">
+                <span class="set-x">|</span>
+                <span class="set-val">R {{ mainSet.weight_r != null ? mainSet.weight_r + ' kg' : '—' }}</span>
+                <span class="set-x">×</span>
+                <span class="set-val">{{ mainSet.reps_r != null ? mainSet.reps_r + ' reps' : '—' }}</span>
+              </template>
               <button class="drop-btn" @click.stop="openDrop(mainSet.set_number)">+ drop</button>
             </div>
             <!-- Drop sets -->
@@ -88,6 +94,9 @@
         <div class="log-area">
           <div class="log-area-header">
             <div class="set-badge">Set {{ store.nextSetNumber(currentEx.exercise_id) }}</div>
+            <button class="use-last-btn" :aria-pressed="splitOn" @click="splitOn = !splitOn">
+              {{ splitOn ? '✓ Left / Right' : 'Left / Right' }}
+            </button>
             <button
               v-if="prevSetHint"
               class="use-last-btn"
@@ -96,6 +105,7 @@
               Last: {{ prevSetHint }} ↑ Use
             </button>
           </div>
+          <p v-if="splitOn" class="side-label">Left</p>
           <div class="input-row">
             <div class="input-group">
               <button class="step-btn" @click="stepWeight(-2.5)">−</button>
@@ -130,6 +140,28 @@
               <button class="step-btn" @click="stepReps(1)">+</button>
             </div>
           </div>
+          <template v-if="splitOn">
+            <p class="side-label">Right</p>
+            <div class="input-row">
+              <div class="input-group">
+                <button class="step-btn" @click="weightRight = Math.max(0, (weightRight || 0) - 2.5)">−</button>
+                <div class="input-wrap">
+                  <input v-model.number="weightRight" type="number" step="0.5" min="0" placeholder="0" class="big-input" inputmode="decimal" />
+                  <span class="input-unit">kg</span>
+                </div>
+                <button class="step-btn" @click="weightRight = (weightRight || 0) + 2.5">+</button>
+              </div>
+              <span class="input-sep">×</span>
+              <div class="input-group">
+                <button class="step-btn" @click="repsRight = Math.max(0, (repsRight || 0) - 1)">−</button>
+                <div class="input-wrap">
+                  <input v-model.number="repsRight" type="number" min="0" placeholder="0" class="big-input" inputmode="numeric" />
+                  <span class="input-unit">reps</span>
+                </div>
+                <button class="step-btn" @click="repsRight = (repsRight || 0) + 1">+</button>
+              </div>
+            </div>
+          </template>
           <button class="btn btn-primary btn-full log-btn" :disabled="logging" @click="logSet">
             {{ logging ? 'Logging…' : 'Log Set' }}
           </button>
@@ -259,6 +291,28 @@
                 <button class="step-btn" @click="editReps = (editReps || 0) + 1">+</button>
               </div>
             </div>
+            <template v-if="isSplit(editSet)">
+              <p class="side-label">Right (above is Left)</p>
+              <div class="input-row" style="margin-bottom:16px">
+                <div class="input-group">
+                  <button class="step-btn" @click="editWeightR = Math.max(0, (editWeightR || 0) - 2.5)">−</button>
+                  <div class="input-wrap">
+                    <input v-model.number="editWeightR" type="number" step="0.5" min="0" class="big-input" inputmode="decimal" />
+                    <span class="input-unit">kg</span>
+                  </div>
+                  <button class="step-btn" @click="editWeightR = (editWeightR || 0) + 2.5">+</button>
+                </div>
+                <span class="input-sep">×</span>
+                <div class="input-group">
+                  <button class="step-btn" @click="editRepsR = Math.max(0, (editRepsR || 0) - 1)">−</button>
+                  <div class="input-wrap">
+                    <input v-model.number="editRepsR" type="number" min="0" class="big-input" inputmode="numeric" />
+                    <span class="input-unit">reps</span>
+                  </div>
+                  <button class="step-btn" @click="editRepsR = (editRepsR || 0) + 1">+</button>
+                </div>
+              </div>
+            </template>
             <button class="btn btn-primary btn-full" :disabled="savingSet" @click="saveSet">
               {{ savingSet ? 'Saving…' : 'Save' }}
             </button>
@@ -324,6 +378,15 @@ const logging = ref(false)
 const loggingDrop = ref(false)
 const weightInput = ref(0)
 const repsInput = ref(0)
+const weightRight = ref(0)
+const repsRight = ref(0)
+const splitMap = ref({}) // exercise_id -> log left and right separately
+const splitOn = computed({
+  get: () => !!splitMap.value[currentEx.value?.exercise_id],
+  set: (v) => { splitMap.value[currentEx.value.exercise_id] = v },
+})
+const isSplit = (row) => row.weight_r != null || row.reps_r != null
+const sideLabel = (row, side) => (isSplit(row) ? side + ' ' : '')
 const dropModal = ref(null)
 const dropWeight = ref(0)
 const dropReps = ref(0)
@@ -388,6 +451,9 @@ function prefillFromLast() {
   if (last) {
     weightInput.value = last.weight ?? 0
     repsInput.value = last.reps ?? 0
+    weightRight.value = last.weight_r ?? last.weight ?? 0
+    repsRight.value = last.reps_r ?? last.reps ?? 0
+    if (isSplit(last)) splitMap.value[exId] = true
   }
 }
 
@@ -398,6 +464,8 @@ function applyLast() {
   if (last) {
     weightInput.value = last.weight ?? weightInput.value
     repsInput.value = last.reps ?? repsInput.value
+    weightRight.value = last.weight_r ?? weightRight.value
+    repsRight.value = last.reps_r ?? repsRight.value
   }
 }
 
@@ -417,7 +485,12 @@ async function logSet() {
   logging.value = true
   try {
     restTotal = currentEx.value.rest_seconds ?? store.session.defaultRest
-    await store.logSet(currentEx.value.exercise_id, weightInput.value || null, repsInput.value || null)
+    await store.logSet(
+      currentEx.value.exercise_id,
+      weightInput.value || null,
+      repsInput.value || null,
+      splitOn.value ? { weight: weightRight.value || null, reps: repsRight.value || null } : null,
+    )
     prefillFromLast()
   } catch (e) {
     alert(e.message)
@@ -453,6 +526,8 @@ const pickerOpen = ref(false)
 const editSet = ref(null)
 const editWeight = ref(0)
 const editReps = ref(0)
+const editWeightR = ref(0)
+const editRepsR = ref(0)
 const savingSet = ref(false)
 
 function setTarget(ex, field, raw) {
@@ -480,13 +555,16 @@ async function onPick(exercise) {
 function openEditSet(row) {
   editWeight.value = row.weight ?? 0
   editReps.value = row.reps ?? 0
+  editWeightR.value = row.weight_r ?? 0
+  editRepsR.value = row.reps_r ?? 0
   editSet.value = row
 }
 
 async function saveSet() {
   savingSet.value = true
   try {
-    await store.updateSet(currentEx.value.exercise_id, editSet.value.id, editWeight.value || null, editReps.value || null)
+    await store.updateSet(currentEx.value.exercise_id, editSet.value.id, editWeight.value || null, editReps.value || null,
+      isSplit(editSet.value) ? { weight: editWeightR.value || null, reps: editRepsR.value || null } : null)
     editSet.value = null
   } catch (e) {
     alert(e.message)
@@ -686,7 +764,11 @@ function confirmExit() {
   padding: 14px;
 }
 .log-area-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.side-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-secondary); margin: 8px 0;
 }
 .set-badge {
   font-size: 12px; font-weight: 700; text-transform: uppercase;

@@ -38,7 +38,7 @@ export const useWorkoutStore = defineStore('workout', () => {
     const byEx = {}
     if (prevSession) {
       const prevRows = await sql`
-        select exercise_id, set_number, drop_number, weight, reps
+        select exercise_id, set_number, drop_number, weight, reps, weight_r, reps_r
         from logged_sets where session_id = ${prevSession.id}
         order by set_number, drop_number
       `
@@ -151,11 +151,12 @@ export const useWorkoutStore = defineStore('workout', () => {
     lastSets.value = {}
   }
 
-  async function logSet(exerciseId, weight, reps) {
+  // weight/reps are the left side when `right` ({ weight, reps }) is given, else the whole set
+  async function logSet(exerciseId, weight, reps, right = null) {
     const setNumber = nextSetNumber(exerciseId)
     const [row] = await sql`
-      insert into logged_sets (session_id, exercise_id, set_number, drop_number, weight, reps)
-      values (${session.value.id}, ${exerciseId}, ${setNumber}, 0, ${weight ?? null}, ${reps ?? null})
+      insert into logged_sets (session_id, exercise_id, set_number, drop_number, weight, reps, weight_r, reps_r)
+      values (${session.value.id}, ${exerciseId}, ${setNumber}, 0, ${weight ?? null}, ${reps ?? null}, ${right?.weight ?? null}, ${right?.reps ?? null})
       returning *
     `
     if (!sets.value[exerciseId]) sets.value[exerciseId] = []
@@ -217,11 +218,13 @@ export const useWorkoutStore = defineStore('workout', () => {
     persistPlan().catch(() => {})
   }
 
-  async function updateSet(exerciseId, rowId, weight, reps) {
-    await sql`update logged_sets set weight = ${weight ?? null}, reps = ${reps ?? null} where id = ${rowId}`
+  async function updateSet(exerciseId, rowId, weight, reps, right = null) {
+    const wr = right?.weight ?? null
+    const rr = right?.reps ?? null
+    await sql`update logged_sets set weight = ${weight ?? null}, reps = ${reps ?? null}, weight_r = ${wr}, reps_r = ${rr} where id = ${rowId}`
     sets.value = {
       ...sets.value,
-      [exerciseId]: setsFor(exerciseId).map(s => s.id === rowId ? { ...s, weight: weight ?? null, reps: reps ?? null } : s),
+      [exerciseId]: setsFor(exerciseId).map(s => s.id === rowId ? { ...s, weight: weight ?? null, reps: reps ?? null, weight_r: wr, reps_r: rr } : s),
     }
   }
 
